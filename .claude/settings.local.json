@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx prisma *)",
+      "Bash(xargs ls *)",
+      "Bash(npx jest *)",
+      "Bash(npm run *)"
+    ]
+  }
+}
