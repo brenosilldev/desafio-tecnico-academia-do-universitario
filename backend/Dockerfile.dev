@@ -1,0 +1,26 @@
+# Imagem de desenvolvimento do backend NestJS + Prisma (hot-reload).
+#
+# Uso via docker-compose.dev.yml — não usar em produção.
+# O código-fonte em src/ é montado como volume pelo compose,
+# permitindo hot-reload sem rebuildar a imagem.
+
+FROM node:20-alpine
+WORKDIR /app
+
+RUN apk add --no-cache openssl libc6-compat
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copia arquivos necessários para o Prisma e para o compilador TypeScript.
+# src/ NÃO é copiado aqui — é montado como volume pelo docker-compose.dev.yml.
+COPY tsconfig.json tsconfig.build.json nest-cli.json ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+
+RUN ./node_modules/.bin/prisma generate --schema=./prisma/schema.prisma
+
+EXPOSE 3333
+
+# Aplica migrations pendentes antes de subir o servidor em watch mode.
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy --schema=./prisma/schema.prisma && exec npm run start:dev"]
