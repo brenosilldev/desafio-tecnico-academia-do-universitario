@@ -1,98 +1,248 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Backend — Desafio AU
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST em **NestJS 11** + **Prisma 7** + **PostgreSQL 16** que serve o Kanban de tarefas.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+> Para visão geral do projeto, ver o [README raiz](../README.md). Esta página é específica do backend.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Sumário
 
-## Project setup
+- [Quick start](#quick-start)
+- [Variáveis de ambiente](#variáveis-de-ambiente)
+- [Scripts disponíveis](#scripts-disponíveis)
+- [Estrutura](#estrutura)
+- [API REST](#api-rest)
+- [Arquitetura](#arquitetura)
+- [Banco de dados](#banco-de-dados)
+- [Testes](#testes)
+- [Tratamento de erros](#tratamento-de-erros)
+
+---
+
+## Quick start
 
 ```bash
-$ npm install
+# da raiz do repo:
+docker compose up -d
+
+cd backend
+cp .env.example .env
+npm install
+npx prisma migrate deploy
+npx prisma db seed     # opcional
+npm run start:dev
 ```
 
-## Compile and run the project
+Servidor sobe em `http://localhost:3333`. API REST em `http://localhost:3333/api/tasks`.
+
+---
+
+## Variáveis de ambiente
+
+Copie `.env.example` para `.env`:
+
+| Variável        | Default                                                      | Uso                              |
+|-----------------|--------------------------------------------------------------|----------------------------------|
+| `DATABASE_URL`  | `postgresql://postgres:postgres@localhost:5432/au_tasks`     | Conexão Prisma                   |
+| `PORT`          | `3333`                                                       | Porta HTTP                       |
+| `FRONTEND_URL`  | `http://localhost:3000`                                      | Origem permitida no CORS         |
+
+---
+
+## Scripts disponíveis
+
+| Script                         | Descrição                                                     |
+|--------------------------------|---------------------------------------------------------------|
+| `npm run start`                | Sobe a aplicação                                              |
+| `npm run start:dev`            | Sobe em modo watch                                            |
+| `npm run start:prod`           | Sobe `dist/main.js` (após `npm run build`)                    |
+| `npm run build`                | Compila TypeScript via Nest CLI                               |
+| `npm run lint`                 | ESLint com `--fix`                                            |
+| `npm run format`               | Prettier nos arquivos `.ts`                                   |
+| `npm run test`                 | Roda toda a suíte (148 testes)                                |
+| `npm run test:unit`            | Apenas testes unitários (mocks de repositório)                |
+| `npm run test:integration`     | Apenas integração (`PrismaTaskRepository`)                    |
+| `npm run test:e2e`             | Apenas e2e via Supertest (config `test/jest-e2e.json`)        |
+| `npm run test:cov`             | Geração de cobertura em `coverage/`                           |
+| `npm run prisma:migrate`       | Atalho para `prisma migrate dev`                              |
+| `npm run prisma:generate`      | Atalho para `prisma generate`                                 |
+| `npm run prisma:format`        | Formata `schema.prisma`                                       |
+
+---
+
+## Estrutura
+
+```
+backend/
+├── prisma/
+│   ├── schema.prisma           # Modelo Task + enum TaskStatus
+│   ├── migrations/             # Migrations versionadas
+│   └── seed.ts                 # 6 tarefas de exemplo
+├── src/
+│   ├── tasks/                  # Módulo principal — arquitetura hexagonal
+│   │   ├── domain/             # Entidade, enum, port (interface)
+│   │   ├── application/        # Casos de uso + DTOs
+│   │   ├── infrastructure/     # Adapter Prisma
+│   │   ├── presentation/       # Controller HTTP
+│   │   └── tasks.module.ts
+│   ├── prisma/                 # PrismaService + módulo @Global()
+│   ├── common/                 # HttpExceptionFilter
+│   ├── app.module.ts           # Composição de módulos
+│   └── main.ts                 # CORS + ValidationPipe + filter + prefixo /api
+├── __tests__/                  # Pirâmide de testes (organizada por módulo)
+└── test/
+    └── jest-e2e.json           # Config dedicada ao e2e
+```
+
+Cada subpasta tem seu próprio `README.md` — veja a [seção de Documentação por módulo](../README.md#documentação-por-módulo) no README raiz.
+
+---
+
+## API REST
+
+Prefixo global: `/api`. Todas as rotas operam sobre `tasks`.
+
+| Método | Rota              | Descrição                          | Status |
+|--------|-------------------|------------------------------------|--------|
+| GET    | `/api/tasks`      | Lista todas as tarefas             | 200    |
+| POST   | `/api/tasks`      | Cria uma tarefa                    | 201    |
+| PATCH  | `/api/tasks/:id`  | Atualiza campos parciais           | 200    |
+| DELETE | `/api/tasks/:id`  | Remove uma tarefa                  | 204    |
+
+### Exemplo — criar tarefa
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+curl -X POST http://localhost:3333/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Estudar Nest","description":"Cobrir filtros e pipes"}'
 ```
 
-## Run tests
+```json
+{
+  "id": "ckm9z3...",
+  "title": "Estudar Nest",
+  "description": "Cobrir filtros e pipes",
+  "status": "TODO",
+  "position": 1,
+  "createdAt": "2026-05-03T13:38:01.234Z",
+  "updatedAt": "2026-05-03T13:38:01.234Z"
+}
+```
+
+### Exemplo — mover para "Em andamento"
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+curl -X PATCH http://localhost:3333/api/tasks/ckm9z3... \
+  -H "Content-Type: application/json" \
+  -d '{"status":"IN_PROGRESS"}'
 ```
 
-## Deployment
+### Resposta de erro padronizada
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Todas as exceções passam pelo `HttpExceptionFilter` global e devolvem:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+```json
+{
+  "statusCode": 404,
+  "message": "Tarefa com id \"abc\" não encontrada",
+  "path": "/api/tasks/abc",
+  "timestamp": "2026-05-03T13:38:01.234Z"
+}
+```
+
+`message` pode ser `string` ou `string[]` (no caso do `ValidationPipe` retornar múltiplos erros).
+
+---
+
+## Arquitetura
+
+O módulo `tasks` segue **hexagonal (ports & adapters)**:
+
+```
+                   ┌──────────────────────┐
+   HTTP  ─────────▶│   Presentation       │
+                   │   TasksController    │
+                   └──────────┬───────────┘
+                              │  injeta use cases
+                   ┌──────────▼───────────┐
+                   │   Application        │
+                   │   *UseCase + DTOs    │
+                   └──────────┬───────────┘
+                              │  depende da interface (port)
+                   ┌──────────▼───────────┐
+                   │   Domain             │
+                   │   Task, TaskRepo IF  │
+                   └──────────▲───────────┘
+                              │  implementa
+                   ┌──────────┴───────────┐
+                   │   Infrastructure     │
+                   │   PrismaTaskRepo     │
+                   └──────────────────────┘
+```
+
+A inversão fica explícita no `TasksModule`:
+
+```ts
+{ provide: TASK_REPOSITORY, useClass: PrismaTaskRepository }
+```
+
+Para trocar PostgreSQL por outro store ou usar um repositório em memória nos testes, basta trocar o `useClass`.
+
+---
+
+## Banco de dados
+
+Schema em `prisma/schema.prisma`:
+
+```prisma
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  position    Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+```
+
+- `cuid` (mais URL-friendly que UUID)
+- Enum nativo do PostgreSQL via Prisma — garante integridade no banco
+- `position` para preservar ordem dentro de cada coluna do Kanban
+- `@@map("tasks")` mantém o nome da tabela em snake_case plural
+
+### Seed
+
+`npx prisma db seed` executa `prisma/seed.ts`, que limpa a tabela e cria 6 tarefas distribuídas entre os três status. Útil para a avaliação não precisar criar tarefas manualmente.
+
+---
+
+## Testes
+
+**11 suítes / 148 testes**, distribuídos em três níveis. Detalhes em [`__tests__/README.md`](./__tests__/README.md).
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm test                  # tudo
+npm run test:unit         # mocks de repositório
+npm run test:integration  # adapter Prisma
+npm run test:e2e          # API completa via Supertest
+npm run test:cov          # com cobertura
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+## Tratamento de erros
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- **`ValidationPipe` global** com `whitelist: true` e `transform: true` rejeita propriedades não declaradas e converte tipos primitivos automaticamente.
+- **`HttpExceptionFilter` global** padroniza qualquer erro (HTTP ou genérico) no formato `{ statusCode, message, path, timestamp }`.
+- **`NotFoundException`** lançada explicitamente nos use cases `UpdateTask` e `DeleteTask` quando o id não existe.
+- Erros não-HTTP (ex.: bug interno) caem em `500` com mensagem padrão `"Erro interno no servidor"` e o stack original é logado pelo `Logger` do Nest.
