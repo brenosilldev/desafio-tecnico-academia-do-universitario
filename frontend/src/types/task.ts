@@ -1,4 +1,4 @@
-export type TaskStatus = 'todo' | 'in_progress' | 'done'
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE'
 
 export interface Task {
   id: string
@@ -16,21 +16,21 @@ export interface MovePayload {
 }
 
 export const STATUS_CONFIG = {
-  todo: {
+  TODO: {
     label: 'A Fazer',
     color: '#6B7280',
     bgColor: '#F3F4F6',
     dotColor: '#9CA3AF',
     badgeClass: 'bg-gray-100 text-gray-600',
   },
-  in_progress: {
+  IN_PROGRESS: {
     label: 'Em Andamento',
     color: '#F97316',
     bgColor: '#FFF7ED',
     dotColor: '#F97316',
     badgeClass: 'bg-orange-100 text-orange-600',
   },
-  done: {
+  DONE: {
     label: 'Concluído',
     color: '#22C55E',
     bgColor: '#F0FDF4',
