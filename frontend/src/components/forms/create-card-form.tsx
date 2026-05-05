@@ -19,23 +19,24 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 interface CreateCardFormProps {
-  onSubmit: (title: string, description: string) => void
+  onSubmit: (title: string, description: string) => Promise<void>
+  isSubmitting?: boolean
 }
 
-export function CreateCardForm({ onSubmit }: CreateCardFormProps) {
+export function CreateCardForm({ onSubmit, isSubmitting = false }: CreateCardFormProps) {
   const router = useRouter()
   const {
     register,
     handleSubmit,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting: formSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   const description = watch('description', '')
+  const loading = isSubmitting || formSubmitting
 
   async function handleFormSubmit(data: FormData) {
-    onSubmit(data.title, data.description)
-    router.push('/')
+    await onSubmit(data.title, data.description)
   }
 
   return (
@@ -46,7 +47,7 @@ export function CreateCardForm({ onSubmit }: CreateCardFormProps) {
         role="alert"
       >
         <div
-          className="mt-0.5 flex-shrink-0 w-5 h-5 rounded flex items-center justify-center"
+          className="mt-0.5 shrink-0 w-5 h-5 rounded flex items-center justify-center"
           style={{ backgroundColor: '#F97316' }}
         >
           <LayoutGrid className="h-3 w-3 text-white" />
@@ -56,7 +57,8 @@ export function CreateCardForm({ onSubmit }: CreateCardFormProps) {
             Status inicial: A Fazer
           </p>
           <p className="text-xs mt-0.5" style={{ color: '#C2410C' }}>
-            Todo card novo é criado automaticamente na coluna &ldquo;A Fazer&rdquo;. Você pode movê-lo depois.
+            Todo card novo é criado automaticamente na coluna &ldquo;A Fazer&rdquo;. Você pode
+            movê-lo depois.
           </p>
         </div>
       </div>
@@ -76,7 +78,7 @@ export function CreateCardForm({ onSubmit }: CreateCardFormProps) {
                 'w-full rounded-lg border px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-300 outline-none transition-colors',
                 errors.title
                   ? 'border-red-300 bg-red-50 focus:border-red-400'
-                  : 'border-gray-200 bg-white focus:border-orange-400'
+                  : 'border-gray-200 bg-white focus:border-orange-400',
               )}
               aria-invalid={!!errors.title}
               aria-describedby={errors.title ? 'title-error' : undefined}
@@ -103,7 +105,7 @@ export function CreateCardForm({ onSubmit }: CreateCardFormProps) {
                   'w-full rounded-lg border px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-300 outline-none resize-none transition-colors',
                   errors.description
                     ? 'border-red-300 bg-red-50 focus:border-red-400'
-                    : 'border-gray-200 bg-white focus:border-orange-400'
+                    : 'border-gray-200 bg-white focus:border-orange-400',
                 )}
                 aria-invalid={!!errors.description}
                 aria-describedby={errors.description ? 'desc-error' : undefined}
@@ -125,7 +127,7 @@ export function CreateCardForm({ onSubmit }: CreateCardFormProps) {
         <Button type="button" variant="ghost" onClick={() => router.push('/')}>
           Cancelar
         </Button>
-        <Button type="submit" loading={isSubmitting}>
+        <Button type="submit" loading={loading}>
           <LayoutGrid className="h-4 w-4" />
           Criar card
         </Button>
