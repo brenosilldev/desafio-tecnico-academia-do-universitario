@@ -34,7 +34,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       id: crypto.randomUUID(),
       title,
       description,
-      status: 'todo',
+      status: 'TODO',
       createdAt: new Date().toISOString().split('T')[0],
     }
     setTasks((prev) => [newTask, ...prev])
@@ -54,13 +54,13 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
   const stats = {
     total: tasks.length,
-    todo: tasks.filter((t) => t.status === 'todo').length,
-    inProgress: tasks.filter((t) => t.status === 'in_progress').length,
-    done: tasks.filter((t) => t.status === 'done').length,
+    todo: tasks.filter((t) => t.status === 'TODO').length,
+    inProgress: tasks.filter((t) => t.status === 'IN_PROGRESS').length,
+    done: tasks.filter((t) => t.status === 'DONE').length,
     completionRate:
       tasks.length > 0
         ? Math.round(
-            (tasks.filter((t) => t.status === 'done').length / tasks.length) * 100
+            (tasks.filter((t) => t.status === 'DONE').length / tasks.length) * 100
           )
         : 0,
   }
