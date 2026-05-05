@@ -3,13 +3,13 @@ import { Task, TaskStatus } from '@/types/task'
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api'
 
 interface BackendTask {
-  id: string
-  title: string
-  description: string | null
-  status: TaskStatus
-  position: number
-  createdAt: string
-  updatedAt: string
+    id: string
+    title: string
+    description: string | null
+    status: TaskStatus
+    position: number
+    createdAt: string
+    updatedAt: string
 }
 
 function mapTask(t: BackendTask): Task {
