@@ -7,8 +7,9 @@ import {
   TrendingUp,
   CheckCircle2,
   Circle,
+  AlertCircle,
 } from 'lucide-react'
-import { useTasks } from '@/context/tasks-context'
+import { useTasks } from '@/hooks/use-tasks'
 import { StatCard } from '@/components/dashboard/stat-card'
 import { StatusDonutChart } from '@/components/dashboard/status-donut-chart'
 import { ColumnBarChart } from '@/components/dashboard/column-bar-chart'
@@ -17,7 +18,20 @@ import { RecentCards } from '@/components/dashboard/recent-cards'
 const STAGGER = 0.07
 
 export default function DashboardPage() {
-  const { tasks, stats } = useTasks()
+  const { tasks, stats, isLoading, isError } = useTasks()
+
+  if (isError) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="flex items-center gap-2 text-red-500 bg-red-50 rounded-xl p-4 border border-red-100">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <p className="text-sm">
+            Não foi possível carregar os dados. Verifique se o servidor está rodando.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -49,30 +63,30 @@ export default function DashboardPage() {
         {[
           {
             icon: <LayoutGrid className="h-4 w-4 text-gray-500" />,
-            value: stats.total,
+            value: isLoading ? '—' : stats.total,
             label: 'Total de Cards',
             sublabel: 'No board',
             iconBgColor: '#F3F4F6',
           },
           {
             icon: <Clock className="h-4 w-4 text-blue-400" />,
-            value: stats.todo,
+            value: isLoading ? '—' : stats.todo,
             label: 'A Fazer',
             sublabel: 'Aguardando início',
             iconBgColor: '#EFF6FF',
           },
           {
             icon: <TrendingUp className="h-4 w-4 text-orange-400" />,
-            value: stats.inProgress,
+            value: isLoading ? '—' : stats.inProgress,
             label: 'Em Andamento',
             sublabel: 'Em progresso',
             iconBgColor: '#FFF7ED',
           },
           {
             icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,
-            value: stats.done,
+            value: isLoading ? '—' : stats.done,
             label: 'Concluídos',
-            sublabel: `${stats.completionRate}% do total`,
+            sublabel: isLoading ? '—' : `${stats.completionRate}% do total`,
             iconBgColor: '#F0FDF4',
           },
         ].map((card, i) => (
@@ -118,7 +132,9 @@ export default function DashboardPage() {
               <div className="w-1 h-4 rounded-full" style={{ backgroundColor: '#F97316' }} />
               <h3 className="text-sm font-semibold text-gray-800">Taxa de Conclusão</h3>
             </div>
-            <span className="text-lg font-bold text-gray-900">{stats.completionRate}%</span>
+            <span className="text-lg font-bold text-gray-900">
+              {isLoading ? '—' : `${stats.completionRate}%`}
+            </span>
           </div>
           <div className="relative h-2.5 w-full rounded-full overflow-hidden bg-gray-100">
             <motion.div
@@ -127,13 +143,17 @@ export default function DashboardPage() {
                 background: 'linear-gradient(to right, #F97316, #22C55E)',
               }}
               initial={{ width: 0 }}
-              animate={{ width: `${stats.completionRate}%` }}
+              animate={{ width: isLoading ? '0%' : `${stats.completionRate}%` }}
               transition={{ duration: 0.8, delay: 0.5, ease: 'easeOut' }}
             />
           </div>
           <div className="flex justify-between mt-2">
-            <span className="text-xs text-gray-400">{stats.done} concluídos</span>
-            <span className="text-xs text-gray-400">{stats.total} total</span>
+            <span className="text-xs text-gray-400">
+              {isLoading ? '—' : `${stats.done} concluídos`}
+            </span>
+            <span className="text-xs text-gray-400">
+              {isLoading ? '—' : `${stats.total} total`}
+            </span>
           </div>
         </div>
       </motion.div>
