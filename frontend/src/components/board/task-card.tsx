@@ -14,9 +14,9 @@ interface TaskCardProps {
 }
 
 const NEXT_STATUS: Record<TaskStatus, TaskStatus | null> = {
-  todo: 'in_progress',
-  in_progress: 'done',
-  done: null,
+  TODO: 'IN_PROGRESS',
+  IN_PROGRESS: 'DONE',
+  DONE: null,
 }
 
 export function TaskCard({ task, onMove, isDragging }: TaskCardProps) {
