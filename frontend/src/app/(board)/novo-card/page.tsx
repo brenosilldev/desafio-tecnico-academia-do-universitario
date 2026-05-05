@@ -3,15 +3,15 @@
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
-import { useTasks } from '@/context/tasks-context'
+import { useCreateTask } from '@/hooks/use-tasks'
 import { CreateCardForm } from '@/components/forms/create-card-form'
 
 export default function NovoCardPage() {
   const router = useRouter()
-  const { addTask } = useTasks()
+  const createTask = useCreateTask()
 
-  function handleSubmit(title: string, description: string) {
-    addTask(title, description)
+  async function handleSubmit(title: string, description: string) {
+    await createTask.mutateAsync({ title, description })
     router.push('/')
   }
 
@@ -39,7 +39,7 @@ export default function NovoCardPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.1 }}
       >
-        <CreateCardForm onSubmit={handleSubmit} />
+        <CreateCardForm onSubmit={handleSubmit} isSubmitting={createTask.isPending} />
       </motion.div>
     </div>
   )
