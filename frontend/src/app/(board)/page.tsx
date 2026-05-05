@@ -3,34 +3,49 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { GripHorizontal } from 'lucide-react'
-import { useTasks } from '@/context/tasks-context'
+import { GripHorizontal, AlertCircle } from 'lucide-react'
+import { useTasks, useUpdateTask } from '@/hooks/use-tasks'
 import { BoardColumn } from '@/components/board/board-column'
 import { MoveTaskModal } from '@/components/board/move-task-modal'
 import { Task, TaskStatus, MovePayload } from '@/types/task'
 
-const COLUMNS: TaskStatus[] = ['todo', 'in_progress', 'done']
+const COLUMNS: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE']
 
 export default function BoardPage() {
   const router = useRouter()
-  const { tasks, moveTask, getByStatus, stats } = useTasks()
-  const [moveModal, setMoveModal] = useState<{
-    task: Task
-    to: TaskStatus
-  } | null>(null)
+  const { tasks, getByStatus, stats, isLoading, isError } = useTasks()
+  const updateTask = useUpdateTask()
+  const [moveModal, setMoveModal] = useState<{ task: Task; to: TaskStatus } | null>(null)
 
   function handleMoveClick(task: Task, to: TaskStatus) {
     setMoveModal({ task, to })
   }
 
   function handleMoveConfirm(payload: MovePayload) {
-    moveTask(payload)
+    updateTask.mutate({ id: payload.taskId, status: payload.to })
     setMoveModal(null)
   }
 
   function handleDrop(taskId: string, _from: TaskStatus, to: TaskStatus) {
     const task = tasks.find((t) => t.id === taskId)
     if (task) handleMoveClick(task, to)
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6 max-w-6xl mx-auto">
+        <div className="flex items-center gap-2 text-red-500 bg-red-50 rounded-xl p-4 border border-red-100">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <p className="text-sm">
+            Não foi possível carregar as tarefas. Verifique se o servidor está rodando em{' '}
+            <code className="font-mono text-xs bg-red-100 px-1 rounded">
+              {process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333/api'}
+            </code>
+            .
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -41,7 +56,9 @@ export default function BoardPage() {
         transition={{ duration: 0.25 }}
       >
         <h1 className="text-xl font-bold text-gray-900">Board de Tarefas</h1>
-        <p className="text-sm text-gray-400 mt-0.5">{stats.total} cards no total</p>
+        <p className="text-sm text-gray-400 mt-0.5">
+          {isLoading ? 'Carregando...' : `${stats.total} cards no total`}
+        </p>
       </motion.div>
 
       <div className="flex items-center justify-end mt-1 mb-6">
@@ -62,9 +79,10 @@ export default function BoardPage() {
             key={status}
             status={status}
             tasks={getByStatus(status)}
+            isLoading={isLoading}
             onMove={handleMoveClick}
             onDropFromDrag={handleDrop}
-            onAddCard={status === 'todo' ? () => router.push('/novo-card') : undefined}
+            onAddCard={status === 'TODO' ? () => router.push('/novo-card') : undefined}
           />
         ))}
       </motion.div>
@@ -73,7 +91,9 @@ export default function BoardPage() {
         task={moveModal?.task ?? null}
         targetStatus={moveModal?.to ?? null}
         open={moveModal !== null}
-        onOpenChange={(open) => { if (!open) setMoveModal(null) }}
+        onOpenChange={(open) => {
+          if (!open) setMoveModal(null)
+        }}
         onConfirm={handleMoveConfirm}
       />
     </div>
