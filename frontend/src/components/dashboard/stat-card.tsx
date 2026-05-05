@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 
 interface StatCardProps {
   icon: React.ReactNode
-  value: number
+  value: number | string
   label: string
   sublabel: string
   iconBgColor?: string
