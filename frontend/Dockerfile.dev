@@ -1,0 +1,24 @@
+# Imagem de desenvolvimento do frontend Next.js (hot-reload via Turbopack).
+#
+# Uso via docker-compose.dev.yml — não usar em produção.
+# O código-fonte em src/ é montado como volume pelo compose,
+# permitindo hot-reload sem rebuildar a imagem.
+
+FROM node:20-alpine
+WORKDIR /app
+
+RUN apk add --no-cache libc6-compat
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copia arquivos de configuração necessários para o Next.js.
+# src/ NÃO é copiado aqui — é montado como volume pelo docker-compose.dev.yml.
+COPY next.config.ts tsconfig.json postcss.config.mjs components.json ./
+RUN mkdir -p ./public
+
+EXPOSE 3000
+
+# Em dev, NEXT_PUBLIC_* são lidos do ambiente em runtime (não baked no bundle),
+# então a variável no docker-compose.dev.yml é suficiente.
+CMD ["npm", "run", "dev"]
