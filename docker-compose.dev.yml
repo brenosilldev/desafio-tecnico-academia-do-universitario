@@ -1,0 +1,97 @@
+# Docker Compose — Desenvolvimento com hot-reload
+#
+# Uso:
+#   docker compose -f docker-compose.dev.yml up -d --build
+#
+# Sobe a stack completa (PostgreSQL + backend + frontend) em modo dev:
+#   - Backend: NestJS com --watch (recompila ao salvar arquivos em src/)
+#   - Frontend: Next.js com Turbopack (HMR ao salvar arquivos em src/)
+#
+# Alterações em src/ de qualquer serviço são refletidas sem rebuildar a imagem.
+# Mudanças em package.json, prisma/schema.prisma ou configs requerem rebuild:
+#   docker compose -f docker-compose.dev.yml up -d --build
+
+name: au-tasks-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: au_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-au_tasks}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - au_postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-au_tasks}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - au_dev_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    image: au-tasks-backend:dev
+    container_name: au_backend_dev
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3333
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-au_tasks}?schema=public
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "${BACKEND_PORT:-3333}:3333"
+    volumes:
+      # Monta src/ para hot-reload. node_modules permanece no container.
+      - ./backend/src:/app/src
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:3333/api/tasks || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - au_dev_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    image: au-tasks-frontend:dev
+    container_name: au_frontend_dev
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      # Em dev, NEXT_PUBLIC_* é lido do ambiente em runtime pelo servidor Next.js
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3333/api}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      # Monta src/ para hot-reload. node_modules e .next permanecem no container.
+      - ./frontend/src:/app/src
+    networks:
+      - au_dev_network
+
+volumes:
+  au_postgres_dev_data:
+    name: au_postgres_dev_data
+
+networks:
+  au_dev_network:
+    name: au_dev_network
+    driver: bridge

@@ -1,0 +1,108 @@
+# Docker Compose — Desafio AU
+#
+# Padrão (sem profile):
+#   docker compose up -d
+#     -> sobe APENAS o PostgreSQL (uso típico em dev local com backend/frontend
+#        rodando direto via npm).
+#
+# Stack completa em produção (banco + backend + frontend containerizados):
+#   docker compose --profile app up -d --build
+#
+# Stack completa em desenvolvimento (hot-reload):
+#   docker compose -f docker-compose.dev.yml up -d --build
+#
+# Variáveis padrão estão pensadas para "rodar de cara" sem precisar de .env
+# externo. Sobrescreva se quiser (ex.: POSTGRES_PASSWORD=algo docker compose up).
+#
+# Para deploy em servidor remoto, passe o endereço público do backend:
+#   NEXT_PUBLIC_API_URL=http://meu-servidor.com:3333/api \
+#   docker compose --profile app up -d --build
+
+name: au-tasks
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: au_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-au_tasks}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - au_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-au_tasks}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - au_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    # Em dev/local:      BACKEND_IMAGE não é definido  → usa au-tasks-backend:latest (buildo local)
+    # Em CI/CD (deploy): BACKEND_IMAGE=ghcr.io/…/backend:sha → usa imagem pré-compilada do GHCR
+    image: ${BACKEND_IMAGE:-au-tasks-backend:latest}
+    container_name: au_backend
+    profiles: ["app", "full"]
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3333
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-au_tasks}?schema=public
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "${BACKEND_PORT:-3333}:3333"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:3333/api/tasks || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - au_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* precisam estar disponíveis em build time
+        # (são injetados no bundle do cliente).
+        # Para deploy remoto: NEXT_PUBLIC_API_URL=http://meu-servidor:3333/api
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3333/api}
+    # Em dev/local:      FRONTEND_IMAGE não é definido  → usa au-tasks-frontend:latest (build local)
+    # Em CI/CD (deploy): FRONTEND_IMAGE=ghcr.io/…/frontend:sha → usa imagem pré-compilada do GHCR
+    image: ${FRONTEND_IMAGE:-au-tasks-frontend:latest}
+    container_name: au_frontend
+    profiles: ["app", "full"]
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3333/api}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    networks:
+      - au_network
+
+volumes:
+  au_postgres_data:
+    name: au_postgres_data
+
+networks:
+  au_network:
+    name: au_network
+    driver: bridge
